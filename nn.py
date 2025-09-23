@@ -143,7 +143,20 @@ class NN:
             self.plot(x_batch, y_batch)
             
             
-        
+    def accuracy(self, x_data, y_data):
+        ans=self.evaluate(x_data)
+        y=np.eye(self.output_dim)[y_data]
+        return np.mean(np.argmax(ans, axis=1) == np.argmax(y, axis=1))
+    
+    def plot_validation_accuracy(self):
+        self.ax.clear()
+        self.ax.plot(self.val_accuracies, label="validation accuracy")
+        self.ax.set_xlabel("Step")
+        self.ax.set_ylabel("Accuracy")
+        self.ax.set_title("Validation Accuracy")
+        self.ax.legend()
+        self.fig.canvas.draw_idle()
+        plt.pause(0.0001)  # let the plot refresh
 
     def train(self, epochs):
         self.train_losses = []
@@ -157,11 +170,19 @@ class NN:
                 batch_i=indices[i:i+self.batch_size]
                 self.optimize_step(self.x_train[batch_i], self.y_train[batch_i])
                 
+            self.plot_validation_accuracy()
+                
             
                 
                 
         plt.ioff()   # turn interactive mode back off
-        plt.show()   # keep the final figure open
+        print("Final Training loss: ", self.train_losses[-1])
+        print("Final Validation loss: ", self.val_losses[-1])
+        print("Final Training accuracy: ", self.accuracy(self.x_train, self.y_train))
+        print("Final Validation accuracy: ", self.accuracy(self.x_val, self.y_val))
+        print("Final Test accuracy: ", self.accuracy(self.x_test, self.y_test))
+        print("Training complete")
+        return
 
 
 #

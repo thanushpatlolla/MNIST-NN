@@ -21,7 +21,7 @@ def softmax(xs):
     
     
 class NN:
-    def __init__(self, training_set, test_data, input_dim, hidden_dims=[128, 64], output_dim=10, act=ReLU(), learning_rate=0.01, batch_size=32):
+    def __init__(self, training_set, test_data, input_dim, hidden_dims=[256, 128], output_dim=10, act=ReLU(), learning_rate=0.01, batch_size=32):
         self.x_train, self.y_train=training_set
         self.test_data=test_data
         self.input_dim=input_dim

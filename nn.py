@@ -103,6 +103,7 @@ class NN:
         
         return ans
             
+                                        
             
     def loss(self, x_data, y_data):
         loss=0.0
@@ -150,6 +151,8 @@ class NN:
         if self.step % self.plot_every == 0:
             self.plot()
             
+        self.plot()
+        
             
 
         

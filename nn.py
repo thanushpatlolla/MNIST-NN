@@ -2,8 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import struct
 from os.path  import join
+from tqdm import tqdm
+import time
 
-#we use label smoothing with 0.9 for the one-hot encoding, mini-batch with const learning rate, He initialization
+#mini-batch with const learning rate, He initialization
 
 class ReLU():
     def act(self, x):
@@ -20,8 +22,8 @@ class GeLU():
         return #do this later
 
 def softmax(xs):
-    exps = np.exp(xs - np.max(xs))
-    return exps / np.sum(exps)
+    exps = np.exp(xs - np.max(xs, axis=1, keepdims=True))
+    return exps / np.sum(exps, axis=1, keepdims=True)
     
     
 class NN:
@@ -48,8 +50,6 @@ class NN:
         self.fig = None
         self.ax = None
         self.step = 0
-        self.plot_every = 16
-
 
         
                 
@@ -64,32 +64,35 @@ class NN:
             self.biases.append(np.zeros(self.dims[i+1]))
             self.activations.append(np.zeros(self.dims[i+1]))
             self.preactivations.append(np.zeros(self.dims[i+1]))
+        
+        #using glorot initialization for the final layer
+        self.weights[-1]=np.random.normal(0.0, np.sqrt(2/(self.dims[-1]+self.dims[-2])), (self.dims[-1], self.dims[-2]))
             
             
     def forward_pass(self, input):
         self.activations[0]=input
         for i in range(0, len(self.dims)-2):
-            self.preactivations[i]=self.weights[i]@self.activations[i]+self.biases[i]
+            self.preactivations[i]=self.activations[i]@self.weights[i].T+self.biases[i]
             self.activations[i+1]=self.act.act(self.preactivations[i])
         
         #because mnist is classification into 10 diff things, 
         #could probably make the final output layer configurable at some point
-        self.preactivations[len(self.dims)-2]=self.weights[len(self.dims)-2]@self.activations[len(self.dims)-2]+self.biases[len(self.dims)-2]
+        self.preactivations[len(self.dims)-2]=self.activations[len(self.dims)-2]@self.weights[len(self.dims)-2].T+self.biases[len(self.dims)-2]
         self.activations[len(self.dims)-1]=softmax(self.preactivations[len(self.dims)-2])
     
-    def backwards_pass(self, output):
+    def backwards_pass(self, y_batch):
+        B=y_batch.shape[0]
         weightgrads=[]
         biasgrads=[]
-        y=np.full(self.output_dim, 0.1)
-        y[output]=0.9
+        y=np.eye(self.output_dim)[y_batch]
         derivs=[self.activations[-1]-y] #derivative of loss wrt to input to the layer, so partial L partial z_i where a_i=relu(z_i)
         for i in reversed(range(1, len(self.dims)-1)):
-            biasgrads.append(derivs[-1])
-            weightgrads.append(np.outer(derivs[-1], self.activations[i]))
-            derivs.append((self.weights[i].T@derivs[-1])*self.act.dact(self.preactivations[i-1]))
+            biasgrads.append(derivs[-1].sum(axis=0)/B)
+            weightgrads.append(derivs[-1].T@self.activations[i]/B)
+            derivs.append((derivs[-1]@self.weights[i])*self.act.dact(self.preactivations[i-1]))
             
-        biasgrads.append(derivs[-1])
-        weightgrads.append(np.outer(derivs[-1], self.activations[0]))
+        biasgrads.append(derivs[-1].sum(axis=0)/B)
+        weightgrads.append(derivs[-1].T@self.activations[0]/B)
         weightgrads.reverse()
         biasgrads.reverse()
         return (weightgrads, biasgrads)
@@ -97,25 +100,19 @@ class NN:
     def evaluate(self, input):
         ans=input
         for i in range(len(self.dims)-2):
-            ans=self.act.act(self.weights[i]@ans+self.biases[i])
+            ans=self.act.act(ans@self.weights[i].T+self.biases[i])
             
-        ans=softmax(self.weights[len(self.dims)-2]@ans+self.biases[len(self.dims)-2])
+        ans=softmax(ans@self.weights[len(self.dims)-2].T+self.biases[len(self.dims)-2])
         
         return ans
             
                                         
             
     def loss(self, x_data, y_data):
-        loss=0.0
-        for i in range(len(y_data)):
-            ans=self.evaluate(x_data[i])
-            for j in range(self.output_dim):
-                if y_data[i]==j:
-                    loss-=0.9*np.log(ans[j]+1e-12)
-                else:
-                    loss-=0.1*np.log(ans[j]+1e-12)
+        ans=self.evaluate(x_data)
+        y=np.eye(self.output_dim)[y_data]
         
-        return loss
+        return -np.dot(np.log(ans+1e-12),y)/len(y_data)
                 
     def plot(self):
         #this code is ai generated, I don't care to write plotting code
@@ -134,25 +131,17 @@ class NN:
         plt.pause(0.01)  # let the plot refresh
 
 
-    def optimize_step(self, batch):
-        wgrads = [np.zeros_like(W) for W in self.weights]
-        bgrads = [np.zeros_like(b) for b in self.biases]
-        for x,y in batch:
-            self.forward_pass(x)
-            wgrad, bgrad=self.backwards_pass(y)        
-            for i in range(len(self.weights)):
-                wgrads[i] += wgrad[i]
-                bgrads[i] += bgrad[i]
-        
+    def optimize_step(self, x_batch, y_batch):
+        self.forward_pass(x_batch)
+        wgrads, bgrads=self.backwards_pass(y_batch)        
         for i in range(len(self.dims)-1):
-            self.weights[i]-=self.learning_rate*wgrads[i]/len(batch)
-            self.biases[i]-=self.learning_rate*bgrads[i]/len(batch)
-        self.step += 1
-        if self.step % self.plot_every == 0:
-            self.plot()
+            self.weights[i]-=self.learning_rate*wgrads[i]
+            self.biases[i]-=self.learning_rate*bgrads[i]
             
             
-
+        self.plot()
+            
+            
         
 
     def train(self, epochs):
@@ -165,7 +154,7 @@ class NN:
             np.random.shuffle(indices)
             for i in range(0, len(self.x_train), self.batch_size):
                 batch_i=indices[i:i+self.batch_size]
-                self.optimize_step(list(zip(self.x_train[batch_i], self.y_train[batch_i])))
+                self.optimize_step(self.x_train[batch_i], self.y_train[batch_i])
                 
             
                 
@@ -218,5 +207,5 @@ test_labels_filepath = join(input_path, 't10k-labels-idx1-ubyte/t10k-labels-idx1
 mnist_dataloader = MnistDataloader(training_images_filepath, training_labels_filepath, test_images_filepath, test_labels_filepath)
 training_set, test_data = mnist_dataloader.load_data()
 
-MNIST_solver=NN(training_set, test_data, len(training_set[0][0]), [128, 64], 10, learning_rate=0.005)
-MNIST_solver.train(50)
+MNIST_solver=NN(training_set, test_data, len(training_set[0][0]), [128, 64], 10)
+MNIST_solver.train(30)

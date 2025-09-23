@@ -6,6 +6,7 @@ from tqdm import tqdm
 import time
 
 #mini-batch with const learning rate, He initialization
+#code for math written by me, plotting code from ai, dataset reading from kaggle
 
 class ReLU():
     def act(self, x):
@@ -14,20 +15,13 @@ class ReLU():
     def dact(self, x):
         return (x>0).astype(x.dtype)
     
-class GeLU():
-    def act(self, x):
-        return 0.5*x*(1+np.tanh(np.sqrt(2/np.pi)*(x+0.044715*x**3)))
-
-    def dact(self, x):
-        return #do this later
-
 def softmax(xs):
     exps = np.exp(xs - np.max(xs, axis=1, keepdims=True))
     return exps / np.sum(exps, axis=1, keepdims=True)
     
     
 class NN:
-    def __init__(self, training_set, test_data, input_dim, hidden_dims, output_dim, act=ReLU(), learning_rate=0.01, batch_size=32):
+    def __init__(self, training_set, test_data, input_dim, hidden_dims=[128, 64], output_dim=10, act=ReLU(), learning_rate=0.01, batch_size=32):
         self.x_train, self.y_train=training_set
         self.test_data=test_data
         self.input_dim=input_dim
@@ -114,21 +108,30 @@ class NN:
         
         return -np.mean(np.sum(y*np.log(ans+1e-12), axis=1))
                 
-    def plot(self, x_batch, y_batch):
-        #this code is ai generated, I don't care to write plotting code
-        if self.ax is None:
-            self.fig, self.ax = plt.subplots()
-        self.train_losses.append(self.loss(x_batch, y_batch))
-        self.val_losses.append(self.loss(self.x_val, self.y_val))
+    def plot(self):
+        if self.ax is None or not hasattr(self, 'ax2'):
+            self.fig, (self.ax, self.ax2) = plt.subplots(1, 2, figsize=(10, 4))
+
         self.ax.clear()
         self.ax.plot(self.train_losses, label="train loss")
         self.ax.plot(self.val_losses, label="val loss")
         self.ax.set_xlabel("Step")
         self.ax.set_ylabel("Loss")
-        self.ax.set_title("Training & Validation Loss")
+        self.ax.set_title("Loss")
         self.ax.legend()
+
+        self.ax2.clear()
+        self.ax2.plot(self.train_accuracies, label="train acc")
+        self.ax2.plot(self.val_accuracies, label="val acc")
+        self.ax2.set_xlabel("Epoch")
+        self.ax2.set_ylabel("Accuracy")
+        self.ax2.set_title("Accuracy")
+        self.ax2.set_ylim(0.8, 1.0)
+        self.ax2.legend()
+
+        self.fig.tight_layout()
         self.fig.canvas.draw_idle()
-        plt.pause(0.0001)  # let the plot refresh
+        plt.pause(0.0001)
 
 
     def optimize_step(self, x_batch, y_batch):
@@ -140,7 +143,9 @@ class NN:
             
         self.step+=1
         if self.step % 100 == 0:
-            self.plot(x_batch, y_batch)
+            self.train_losses.append(self.loss(x_batch, y_batch))
+            self.val_losses.append(self.loss(self.x_val, self.y_val))
+            self.plot()
             
             
     def accuracy(self, x_data, y_data):
@@ -148,19 +153,11 @@ class NN:
         y=np.eye(self.output_dim)[y_data]
         return np.mean(np.argmax(ans, axis=1) == np.argmax(y, axis=1))
     
-    def plot_validation_accuracy(self):
-        self.ax.clear()
-        self.ax.plot(self.val_accuracies, label="validation accuracy")
-        self.ax.set_xlabel("Step")
-        self.ax.set_ylabel("Accuracy")
-        self.ax.set_title("Validation Accuracy")
-        self.ax.legend()
-        self.fig.canvas.draw_idle()
-        plt.pause(0.0001)  # let the plot refresh
-
     def train(self, epochs):
         self.train_losses = []
         self.val_losses = []
+        self.train_accuracies = []
+        self.val_accuracies = []
         plt.ion()  # turn on interactive mode
         self.initialize()
         for _ in range(epochs):
@@ -170,12 +167,17 @@ class NN:
                 batch_i=indices[i:i+self.batch_size]
                 self.optimize_step(self.x_train[batch_i], self.y_train[batch_i])
                 
-            self.plot_validation_accuracy()
+            self.train_accuracies.append(self.accuracy(self.x_train, self.y_train))
+            self.val_accuracies.append(self.accuracy(self.x_val, self.y_val))
+            self.plot()
                 
             
                 
                 
-        plt.ioff()   # turn interactive mode back off
+        plt.ioff()
+        self.plot()
+        plt.show()
+
         print("Final Training loss: ", self.train_losses[-1])
         print("Final Validation loss: ", self.val_losses[-1])
         print("Final Training accuracy: ", self.accuracy(self.x_train, self.y_train))
@@ -229,5 +231,5 @@ test_labels_filepath = join(input_path, 't10k-labels-idx1-ubyte/t10k-labels-idx1
 mnist_dataloader = MnistDataloader(training_images_filepath, training_labels_filepath, test_images_filepath, test_labels_filepath)
 training_set, test_data = mnist_dataloader.load_data()
 
-MNIST_solver=NN(training_set, test_data, len(training_set[0][0]), [128, 64], 10)
-MNIST_solver.train(30)
+MNIST_solver=NN(training_set, test_data, len(training_set[0][0]))
+MNIST_solver.train(50)

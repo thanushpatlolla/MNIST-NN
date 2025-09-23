@@ -6,27 +6,22 @@ from os.path  import join
 #we use label smoothing with 0.9 for the one-hot encoding, mini-batch with const learning rate, He initialization
 
 class ReLU():
-    def act(x):
+    def act(self, x):
         return np.maximum(0,x)
 
-    def dact(x):
+    def dact(self, x):
         return (x>0).astype(x.dtype)
     
 class GeLU():
-    def act(x):
+    def act(self, x):
         return 0.5*x*(1+np.tanh(np.sqrt(2/np.pi)*(x+0.044715*x**3)))
 
-    def dact(x):
+    def dact(self, x):
         return #do this later
 
 def softmax(xs):
     exps = np.exp(xs - np.max(xs))
     return exps / np.sum(exps)
-
-def dloss(logits, label):
-    #gives the derivative of the cross-entropy loss wrt the logits (inputs) of the softmax function in the last layer
-    #https://math.stackexchange.com/questions/945871/derivative-of-softmax-loss-function
-    return logits-label
     
     
 class NN:
@@ -59,7 +54,7 @@ class NN:
         self.biases=[]
         self.activations=[np.zeros(self.dims[0])]
         self.preactivations=[] #stores z in z=Wa+b, inputs to act functions
-        for i in range(len(self.dims-1)):
+        for i in range(len(self.dims)-1):
             self.weights.append(np.random.normal(0.0, np.sqrt(2/self.dims[i]), (self.dims[i+1], self.dims[i])))
             self.biases.append(np.zeros(self.dims[i+1]))
             self.activations.append(np.zeros(self.dims[i+1]))
@@ -80,14 +75,16 @@ class NN:
     def backwards_pass(self, output):
         weightgrads=[]
         biasgrads=[]
-        derivs=[dloss(self.preactivations[len(self.dims)-2], output)] #derivative of loss wrt to input to the layer, so partial L partial z_i where a_i=relu(z_i)
+        y=np.full(self.output_dim, 0.1)
+        y[output]=0.9
+        derivs=[self.activations[-1]-y] #derivative of loss wrt to input to the layer, so partial L partial z_i where a_i=relu(z_i)
         for i in reversed(range(1, len(self.dims)-1)):
-            biasgrads.append(derivs[len(self.dims)-2-i])
-            weightgrads.append(derivs[i]@self.activations[i].T)
-            derivs.append((self.weights[i].T@derivs[len(self.dims)-2-i])*self.act.dact(self.activations[i]))
+            biasgrads.append(derivs[-1])
+            weightgrads.append(np.outer(derivs[-1], self.activations[i]))
+            derivs.append((self.weights[i].T@derivs[-1])*self.act.dact(self.preactivations[i]))
             
-        biasgrads[len(self.dims)-2]=self.derivs[len(self.dims)-2]
-        weightgrads[len(self.dims)-2]=self.derivs[len(self.dims)-2]@self.activations[0].T
+        biasgrads[-1]=derivs[-1]
+        weightgrads[-1]=np.outer(derivs[-1], self.activations[0])
         weightgrads.reverse()
         biasgrads.reverse()
         return (weightgrads, biasgrads)
@@ -106,15 +103,16 @@ class NN:
         loss=0.0
         for i in range(len(y_data)):
             ans=self.evaluate(x_data[i])
-            for j in range(10):
-                loss-=y_data[i][j]*np.log(ans[j])
+            for j in range(self.output_dim):
+                if y_data[i]==j:
+                    loss-=0.9*np.log(ans[j])
+                else:
+                    loss-=0.1*np.log(ans[j])
         
         return loss
                 
     def plot(self):
         #this code is ai generated, I don't care to write plotting code
-        self.train_losses = []
-        self.val_losses = []
 
         fig, ax = plt.subplots()
         
@@ -133,20 +131,18 @@ class NN:
 
 
     def optimize_step(self, batch):
-        wgrads=[]
-        bgrads=[]
-        for pair in batch:
-            self.forward_pass(pair[0])
-            wgrad, bgrad=self.backwards_pass(pair[1])        
-            wgrads.append(wgrad)
-            bgrads.append(bgrad)
-        
-        avg_wgrads = np.mean(np.stack(wgrads, axis=0), axis=0)
-        avg_bgrads  = np.mean(np.stack(bgrads, axis=0), axis=0)
+        wgrads = [np.zeros_like(W) for W in self.weights]
+        bgrads = [np.zeros_like(b) for b in self.biases]
+        for x,y in batch:
+            self.forward_pass(x)
+            wgrad, bgrad=self.backwards_pass(y)        
+            for i in range(len(self.weights)):
+                wgrads[i] += wgrad[i]
+                bgrads[i] += bgrad[i]
         
         for i in range(len(self.dims)-1):
-            self.weights[i]-=self.learning_rate*avg_wgrads[i]
-            self.bgrads[i]-=self.learning_rate*avg_bgrads[i]
+            self.weights[i]-=self.learning_rate*wgrads[i]/len(batch)
+            self.biases[i]-=self.learning_rate*bgrads[i]/len(batch)
             
         self.plot()
         
@@ -155,13 +151,16 @@ class NN:
         
 
     def train(self, epochs):
+        self.train_losses = []
+        self.val_losses = []
         plt.ion()  # turn on interactive mode
+        self.initialize()
         for _ in range(epochs):
             indices = np.arange(len(self.x_train))
             np.random.shuffle(indices)
             for i in range(0, len(self.x_train), self.batch_size):
                 batch_i=indices[i:i+self.batch_size]
-                self.optimize_step(zip(x_train[batch_i], y_train[batch_i]))
+                self.optimize_step(list(zip(self.x_train[batch_i], self.y_train[batch_i])))
                 
             
                 
@@ -191,29 +190,22 @@ class MnistDataloader(object):
             magic, size = struct.unpack(">II", file.read(8))
             if magic != 2049:
                 raise ValueError('Magic number mismatch, expected 2049, got {}'.format(magic))
-            labels = np.array("B", file.read())        
+            labels = np.frombuffer(file.read(), dtype=np.uint8)
         
         with open(images_filepath, 'rb') as file:
             magic, size, rows, cols = struct.unpack(">IIII", file.read(16))
             if magic != 2051:
                 raise ValueError('Magic number mismatch, expected 2051, got {}'.format(magic))
-            image_data = np.array("B", file.read())        
-        images = []
-        for i in range(size):
-            images.append([0] * rows * cols)
-        for i in range(size):
-            img = np.array(image_data[i * rows * cols:(i + 1) * rows * cols])
-            img = img.reshape(28, 28)
-            images[i][:] = img            
-        
+            image_data = np.frombuffer(file.read(), dtype=np.uint8)
+        images = image_data.reshape(size, rows * cols).astype(np.float32) / 255.0
         return images, labels
-            
+             
     def load_data(self):
         x_train, y_train = self.read_images_labels(self.training_images_filepath, self.training_labels_filepath)
         x_test, y_test = self.read_images_labels(self.test_images_filepath, self.test_labels_filepath)
         return (x_train, y_train),(x_test, y_test)
     
-input_path = '../input'
+input_path = 'input'
 training_images_filepath = join(input_path, 'train-images-idx3-ubyte/train-images-idx3-ubyte')
 training_labels_filepath = join(input_path, 'train-labels-idx1-ubyte/train-labels-idx1-ubyte')
 test_images_filepath = join(input_path, 't10k-images-idx3-ubyte/t10k-images-idx3-ubyte')

@@ -57,13 +57,13 @@ class NN:
     def initialize(self):
         self.weights=[]
         self.biases=[]
-        self.activations=[np.zeros(self.dims[0])]
+        self.activations=[np.zeros(self.dims[0], dtype=np.float32)]
         self.preactivations=[] #stores z in z=Wa+b, inputs to act functions
         for i in range(len(self.dims)-1):
-            self.weights.append(np.random.normal(0.0, np.sqrt(2/self.dims[i]), (self.dims[i+1], self.dims[i])))
-            self.biases.append(np.zeros(self.dims[i+1]))
-            self.activations.append(np.zeros(self.dims[i+1]))
-            self.preactivations.append(np.zeros(self.dims[i+1]))
+            self.weights.append(np.random.normal(0.0, np.sqrt(2/self.dims[i]), (self.dims[i+1], self.dims[i])).astype(np.float32))
+            self.biases.append(np.zeros(self.dims[i+1]).astype(np.float32))
+            self.activations.append(np.zeros(self.dims[i+1]).astype(np.float32))
+            self.preactivations.append(np.zeros(self.dims[i+1]).astype(np.float32))
         
         #using glorot initialization for the final layer
         self.weights[-1]=np.random.normal(0.0, np.sqrt(2/(self.dims[-1]+self.dims[-2])), (self.dims[-1], self.dims[-2]))
@@ -112,13 +112,13 @@ class NN:
         ans=self.evaluate(x_data)
         y=np.eye(self.output_dim)[y_data]
         
-        return -np.dot(np.log(ans+1e-12),y)/len(y_data)
+        return -np.mean(np.sum(y*np.log(ans+1e-12), axis=1))
                 
-    def plot(self):
+    def plot(self, x_batch, y_batch):
         #this code is ai generated, I don't care to write plotting code
         if self.ax is None:
             self.fig, self.ax = plt.subplots()
-        self.train_losses.append(self.loss(self.x_train, self.y_train))
+        self.train_losses.append(self.loss(x_batch, y_batch))
         self.val_losses.append(self.loss(self.x_val, self.y_val))
         self.ax.clear()
         self.ax.plot(self.train_losses, label="train loss")
@@ -128,7 +128,7 @@ class NN:
         self.ax.set_title("Training & Validation Loss")
         self.ax.legend()
         self.fig.canvas.draw_idle()
-        plt.pause(0.01)  # let the plot refresh
+        plt.pause(0.0001)  # let the plot refresh
 
 
     def optimize_step(self, x_batch, y_batch):
@@ -138,8 +138,9 @@ class NN:
             self.weights[i]-=self.learning_rate*wgrads[i]
             self.biases[i]-=self.learning_rate*bgrads[i]
             
-            
-        self.plot()
+        self.step+=1
+        if self.step % 100 == 0:
+            self.plot(x_batch, y_batch)
             
             
         

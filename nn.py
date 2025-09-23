@@ -151,8 +151,6 @@ class NN:
         if self.step % self.plot_every == 0:
             self.plot()
             
-        self.plot()
-        
             
 
         

@@ -44,6 +44,11 @@ class NN:
         test_i = indices[split:]
         self.x_val, self.y_val=x_test_data[val_i], y_test_data[val_i]
         self.x_test, self.y_test=x_test_data[test_i], y_test_data[test_i]
+        # plotting state
+        self.fig = None
+        self.ax = None
+        self.step = 0
+        self.plot_every = 16
 
 
         
@@ -81,10 +86,10 @@ class NN:
         for i in reversed(range(1, len(self.dims)-1)):
             biasgrads.append(derivs[-1])
             weightgrads.append(np.outer(derivs[-1], self.activations[i]))
-            derivs.append((self.weights[i].T@derivs[-1])*self.act.dact(self.preactivations[i]))
+            derivs.append((self.weights[i].T@derivs[-1])*self.act.dact(self.preactivations[i-1]))
             
-        biasgrads[-1]=derivs[-1]
-        weightgrads[-1]=np.outer(derivs[-1], self.activations[0])
+        biasgrads.append(derivs[-1])
+        weightgrads.append(np.outer(derivs[-1], self.activations[0]))
         weightgrads.reverse()
         biasgrads.reverse()
         return (weightgrads, biasgrads)
@@ -105,28 +110,26 @@ class NN:
             ans=self.evaluate(x_data[i])
             for j in range(self.output_dim):
                 if y_data[i]==j:
-                    loss-=0.9*np.log(ans[j])
+                    loss-=0.9*np.log(ans[j]+1e-12)
                 else:
-                    loss-=0.1*np.log(ans[j])
+                    loss-=0.1*np.log(ans[j]+1e-12)
         
         return loss
                 
     def plot(self):
         #this code is ai generated, I don't care to write plotting code
-
-        fig, ax = plt.subplots()
-        
+        if self.ax is None:
+            self.fig, self.ax = plt.subplots()
         self.train_losses.append(self.loss(self.x_train, self.y_train))
         self.val_losses.append(self.loss(self.x_val, self.y_val))
-
-        # --- live update plot ---
-        ax.clear()
-        ax.plot(self.train_losses, label="train loss")
-        ax.plot(self.val_losses, label="val loss")
-        ax.set_xlabel("Step")
-        ax.set_ylabel("Loss")
-        ax.set_title("Training & Validation Loss")
-        ax.legend()
+        self.ax.clear()
+        self.ax.plot(self.train_losses, label="train loss")
+        self.ax.plot(self.val_losses, label="val loss")
+        self.ax.set_xlabel("Step")
+        self.ax.set_ylabel("Loss")
+        self.ax.set_title("Training & Validation Loss")
+        self.ax.legend()
+        self.fig.canvas.draw_idle()
         plt.pause(0.01)  # let the plot refresh
 
 
@@ -143,9 +146,10 @@ class NN:
         for i in range(len(self.dims)-1):
             self.weights[i]-=self.learning_rate*wgrads[i]/len(batch)
             self.biases[i]-=self.learning_rate*bgrads[i]/len(batch)
+        self.step += 1
+        if self.step % self.plot_every == 0:
+            self.plot()
             
-        self.plot()
-        
             
 
         
@@ -213,5 +217,5 @@ test_labels_filepath = join(input_path, 't10k-labels-idx1-ubyte/t10k-labels-idx1
 mnist_dataloader = MnistDataloader(training_images_filepath, training_labels_filepath, test_images_filepath, test_labels_filepath)
 training_set, test_data = mnist_dataloader.load_data()
 
-MNIST_solver=NN(training_set, test_data, len(training_set[0][0]), [128, 64], 10)
+MNIST_solver=NN(training_set, test_data, len(training_set[0][0]), [128, 64], 10, learning_rate=0.005)
 MNIST_solver.train(50)

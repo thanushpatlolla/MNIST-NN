@@ -20,18 +20,18 @@ class NN:
         self.batch_size=batch_size
         self.l2_reg=l2_reg
         self.dims=[input_dim]+list(hidden_dims)+[output_dim]
-        #test/val split should be a separate function
-        x_test_data, y_test_data=self.test_data
-        n=len(x_test_data)
+        self.split_data()
+        self.plot = Plot()
+    
+    def split_data(self):
+        n=len(self.test_data[0])
         indices = np.arange(n)
         np.random.shuffle(indices)
         split=n//2
         val_i = indices[:split]
         test_i = indices[split:]
-        self.x_val, self.y_val=x_test_data[val_i], y_test_data[val_i]
-        self.x_test, self.y_test=x_test_data[test_i], y_test_data[test_i]
-        # plotting state
-        self.plot = Plot()
+        self.x_val, self.y_val=self.test_data[0][val_i], self.test_data[1][val_i]
+        self.x_test, self.y_test=self.test_data[0][test_i], self.test_data[1][test_i]
     
     def initialize(self):
         self.weights=[]

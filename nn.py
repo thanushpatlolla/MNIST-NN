@@ -81,7 +81,7 @@ class NN:
         y=np.eye(self.output_dim)[y_batch]
         derivs=[self.activations[-1]-y] #derivative of loss wrt to input to the layer, so partial L partial z_i where a_i=relu(z_i)
         for i in reversed(range(1, len(self.dims)-1)):
-            biasgrads.append(derivs[-1].sum(axis=0)/B)
+            biasgrads.append(np.mean(derivs[-1], axis=0))
             weightgrads.append(derivs[-1].T@self.activations[i]/B)
             derivs.append((derivs[-1]@self.weights[i])*self.act.dact(self.preactivations[i-1]))
             
@@ -150,8 +150,7 @@ class NN:
             
     def accuracy(self, x_data, y_data):
         ans=self.evaluate(x_data)
-        y=np.eye(self.output_dim)[y_data]
-        return np.mean(np.argmax(ans, axis=1) == np.argmax(y, axis=1))
+        return np.mean(np.argmax(ans, axis=1) == y)
     
     def train(self, epochs):
         self.train_losses = []

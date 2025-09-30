@@ -1,2 +1,7 @@
-input/
-input/**
+data/
+data/**
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz

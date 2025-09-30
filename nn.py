@@ -1,27 +1,18 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import struct
-from os.path  import join
-from tqdm import tqdm
-import time
+from activations import ReLU
+from dataloader import DataLoader
+from loss import CrossEntropyLoss as loss
+
 
 #mini-batch with const learning rate, He initialization
-#code for math written by me, plotting code from ai, dataset reading from kaggle
-
-class ReLU():
-    def act(self, x):
-        return np.maximum(0,x)
-
-    def dact(self, x):
-        return (x>0).astype(x.dtype)
+#code for math written by me, plotting code from ai, wrote dataset loader
     
-def softmax(xs):
-    exps = np.exp(xs - np.max(xs, axis=1, keepdims=True))
-    return exps / np.sum(exps, axis=1, keepdims=True)
     
     
 class NN:
-    def __init__(self, training_set, test_data, input_dim, hidden_dims=[256, 128], output_dim=10, act=ReLU(), learning_rate=0.01, batch_size=32):
+    def __init__(self, training_set, test_data, input_dim, hidden_dims=[128, 64], output_dim=10, act=ReLU(), learning_rate=0.001, batch_size=32, l2_reg=0.0001):
         self.x_train, self.y_train=training_set
         self.test_data=test_data
         self.input_dim=input_dim
@@ -30,7 +21,9 @@ class NN:
         self.act=act
         self.learning_rate=learning_rate
         self.batch_size=batch_size
+        self.l2_reg=l2_reg
         self.dims=[input_dim]+list(hidden_dims)+[output_dim]
+        #test/val split should be a separate function
         x_test_data, y_test_data=self.test_data
         n=len(x_test_data)
         indices = np.arange(n)
@@ -43,9 +36,6 @@ class NN:
         # plotting state
         self.fig = None
         self.ax = None
-        self.step = 0
-
-        
                 
     
     def initialize(self):
@@ -72,7 +62,7 @@ class NN:
         #because mnist is classification into 10 diff things, 
         #could probably make the final output layer configurable at some point
         self.preactivations[len(self.dims)-2]=self.activations[len(self.dims)-2]@self.weights[len(self.dims)-2].T+self.biases[len(self.dims)-2]
-        self.activations[len(self.dims)-1]=softmax(self.preactivations[len(self.dims)-2])
+        self.activations[len(self.dims)-1]=loss.softmax(self.preactivations[len(self.dims)-2])
     
     def backwards_pass(self, y_batch):
         B=y_batch.shape[0]
@@ -96,7 +86,7 @@ class NN:
         for i in range(len(self.dims)-2):
             ans=self.act.act(ans@self.weights[i].T+self.biases[i])
             
-        ans=softmax(ans@self.weights[len(self.dims)-2].T+self.biases[len(self.dims)-2])
+        ans=loss.softmax(ans@self.weights[len(self.dims)-2].T+self.biases[len(self.dims)-2])
         
         return ans
             
@@ -115,7 +105,7 @@ class NN:
         self.ax.clear()
         self.ax.plot(self.train_losses, label="train loss")
         self.ax.plot(self.val_losses, label="val loss")
-        self.ax.set_xlabel("Step")
+        self.ax.set_xlabel("Epoch")
         self.ax.set_ylabel("Loss")
         self.ax.set_title("Loss")
         self.ax.legend()
@@ -138,19 +128,16 @@ class NN:
         self.forward_pass(x_batch)
         wgrads, bgrads=self.backwards_pass(y_batch)        
         for i in range(len(self.dims)-1):
+            # Add L2 regularization to weight gradients
+            wgrads[i] += self.l2_reg * self.weights[i]
             self.weights[i]-=self.learning_rate*wgrads[i]
             self.biases[i]-=self.learning_rate*bgrads[i]
             
-        self.step+=1
-        if self.step % 100 == 0:
-            self.train_losses.append(self.loss(x_batch, y_batch))
-            self.val_losses.append(self.loss(self.x_val, self.y_val))
-            self.plot()
             
             
     def accuracy(self, x_data, y_data):
         ans=self.evaluate(x_data)
-        return np.mean(np.argmax(ans, axis=1) == y)
+        return np.mean(np.argmax(ans, axis=1) == y_data)
     
     def train(self, epochs):
         self.train_losses = []
@@ -166,6 +153,8 @@ class NN:
                 batch_i=indices[i:i+self.batch_size]
                 self.optimize_step(self.x_train[batch_i], self.y_train[batch_i])
                 
+            self.train_losses.append(self.loss(self.x_train, self.y_train))
+            self.val_losses.append(self.loss(self.x_val, self.y_val))
             self.train_accuracies.append(self.accuracy(self.x_train, self.y_train))
             self.val_accuracies.append(self.accuracy(self.x_val, self.y_val))
             self.plot()
@@ -222,13 +211,8 @@ class MnistDataloader(object):
         x_test, y_test = self.read_images_labels(self.test_images_filepath, self.test_labels_filepath)
         return (x_train, y_train),(x_test, y_test)
     
-input_path = 'input'
-training_images_filepath = join(input_path, 'train-images-idx3-ubyte/train-images-idx3-ubyte')
-training_labels_filepath = join(input_path, 'train-labels-idx1-ubyte/train-labels-idx1-ubyte')
-test_images_filepath = join(input_path, 't10k-images-idx3-ubyte/t10k-images-idx3-ubyte')
-test_labels_filepath = join(input_path, 't10k-labels-idx1-ubyte/t10k-labels-idx1-ubyte')
-mnist_dataloader = MnistDataloader(training_images_filepath, training_labels_filepath, test_images_filepath, test_labels_filepath)
-training_set, test_data = mnist_dataloader.load_data()
+mnist_dataloader = DataLoader()
+training_set, test_data = mnist_dataloader.get_data()
 
 MNIST_solver=NN(training_set, test_data, len(training_set[0][0]))
-MNIST_solver.train(50)
+MNIST_solver.train(20)

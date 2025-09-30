@@ -1,18 +1,15 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import struct
 from activations import ReLU
-from dataloader import DataLoader
 from loss import CrossEntropyLoss as loss
+from plot import Plot
 
 
 #mini-batch with const learning rate, He initialization
 #code for math written by me, plotting code from ai, wrote dataset loader
     
-    
-    
 class NN:
-    def __init__(self, training_set, test_data, input_dim, hidden_dims=[128, 64], output_dim=10, act=ReLU(), learning_rate=0.001, batch_size=32, l2_reg=0.0001):
+    def __init__(self, training_set, test_data, input_dim, hidden_dims=[128, 64], output_dim=10, act=ReLU(), learning_rate=0.001, batch_size=32, l2_reg=0.0):
         self.x_train, self.y_train=training_set
         self.test_data=test_data
         self.input_dim=input_dim
@@ -34,9 +31,7 @@ class NN:
         self.x_val, self.y_val=x_test_data[val_i], y_test_data[val_i]
         self.x_test, self.y_test=x_test_data[test_i], y_test_data[test_i]
         # plotting state
-        self.fig = None
-        self.ax = None
-                
+        self.plot = Plot()
     
     def initialize(self):
         self.weights=[]
@@ -98,38 +93,13 @@ class NN:
         
         return -np.mean(np.sum(y*np.log(ans+1e-12), axis=1))
                 
-    def plot(self):
-        if self.ax is None or not hasattr(self, 'ax2'):
-            self.fig, (self.ax, self.ax2) = plt.subplots(1, 2, figsize=(10, 4))
-
-        self.ax.clear()
-        self.ax.plot(self.train_losses, label="train loss")
-        self.ax.plot(self.val_losses, label="val loss")
-        self.ax.set_xlabel("Epoch")
-        self.ax.set_ylabel("Loss")
-        self.ax.set_title("Loss")
-        self.ax.legend()
-
-        self.ax2.clear()
-        self.ax2.plot(self.train_accuracies, label="train acc")
-        self.ax2.plot(self.val_accuracies, label="val acc")
-        self.ax2.set_xlabel("Epoch")
-        self.ax2.set_ylabel("Accuracy")
-        self.ax2.set_title("Accuracy")
-        self.ax2.set_ylim(0.8, 1.0)
-        self.ax2.legend()
-
-        self.fig.tight_layout()
-        self.fig.canvas.draw_idle()
-        plt.pause(0.0001)
-
 
     def optimize_step(self, x_batch, y_batch):
         self.forward_pass(x_batch)
         wgrads, bgrads=self.backwards_pass(y_batch)        
         for i in range(len(self.dims)-1):
-            # Add L2 regularization to weight gradients
-            wgrads[i] += self.l2_reg * self.weights[i]
+            #l2 reg if we want it
+            wgrads[i] += 2.0*self.l2_reg * self.weights[i]
             self.weights[i]-=self.learning_rate*wgrads[i]
             self.biases[i]-=self.learning_rate*bgrads[i]
             
@@ -144,7 +114,6 @@ class NN:
         self.val_losses = []
         self.train_accuracies = []
         self.val_accuracies = []
-        plt.ion()  # turn on interactive mode
         self.initialize()
         for _ in range(epochs):
             indices = np.arange(len(self.x_train))
@@ -157,14 +126,10 @@ class NN:
             self.val_losses.append(self.loss(self.x_val, self.y_val))
             self.train_accuracies.append(self.accuracy(self.x_train, self.y_train))
             self.val_accuracies.append(self.accuracy(self.x_val, self.y_val))
-            self.plot()
-                
+            self.plot.plot(self.train_losses, self.val_losses, self.train_accuracies, self.val_accuracies)
             
                 
-                
-        plt.ioff()
-        self.plot()
-        plt.show()
+        self.plot.final_plot(self.train_losses, self.val_losses, self.train_accuracies, self.val_accuracies)
 
         print("Final Training loss: ", self.train_losses[-1])
         print("Final Validation loss: ", self.val_losses[-1])
@@ -173,46 +138,3 @@ class NN:
         print("Final Test accuracy: ", self.accuracy(self.x_test, self.y_test))
         print("Training complete")
         return
-
-
-#
-# Below code is from the kaggle website
-#
-
-#
-# MNIST Data Loader Class
-#
-class MnistDataloader(object):
-    def __init__(self, training_images_filepath,training_labels_filepath,
-                 test_images_filepath, test_labels_filepath):
-        self.training_images_filepath = training_images_filepath
-        self.training_labels_filepath = training_labels_filepath
-        self.test_images_filepath = test_images_filepath
-        self.test_labels_filepath = test_labels_filepath
-    
-    def read_images_labels(self, images_filepath, labels_filepath):        
-        labels = []
-        with open(labels_filepath, 'rb') as file:
-            magic, size = struct.unpack(">II", file.read(8))
-            if magic != 2049:
-                raise ValueError('Magic number mismatch, expected 2049, got {}'.format(magic))
-            labels = np.frombuffer(file.read(), dtype=np.uint8)
-        
-        with open(images_filepath, 'rb') as file:
-            magic, size, rows, cols = struct.unpack(">IIII", file.read(16))
-            if magic != 2051:
-                raise ValueError('Magic number mismatch, expected 2051, got {}'.format(magic))
-            image_data = np.frombuffer(file.read(), dtype=np.uint8)
-        images = image_data.reshape(size, rows * cols).astype(np.float32) / 255.0
-        return images, labels
-             
-    def load_data(self):
-        x_train, y_train = self.read_images_labels(self.training_images_filepath, self.training_labels_filepath)
-        x_test, y_test = self.read_images_labels(self.test_images_filepath, self.test_labels_filepath)
-        return (x_train, y_train),(x_test, y_test)
-    
-mnist_dataloader = DataLoader()
-training_set, test_data = mnist_dataloader.get_data()
-
-MNIST_solver=NN(training_set, test_data, len(training_set[0][0]))
-MNIST_solver.train(20)

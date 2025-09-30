@@ -33,41 +33,16 @@ class DataLoader():
         else:
             raise ValueError(f"Dataset {self.dataset} not supported")
         
-        data_path = f'./data/{self.dataset.upper()}'
-        download_needed = not (os.path.exists(data_path) and os.listdir(data_path))
-        
-        if download_needed:
-            print(f"Downloading {self.dataset.upper()} dataset...")
-        else:
-            print(f"Found existing {self.dataset.upper()} data, skipping download")
-        
-        # Get the correct dataset class
-        dataset_class = getattr(torchvision.datasets, self.dataset.upper())
-        
-        train_set = dataset_class(
-            './data', train=True, download=download_needed,
-            transform=torchvision.transforms.Compose(train_transforms))
-        test_set = dataset_class(
-            './data', train=False, download=download_needed,
-            transform=torchvision.transforms.Compose(test_transforms))
-
-        x_train = []
-        y_train = []
-        for i in range(len(train_set)):
-            data, label = train_set[i]
-            x_train.append(data.numpy())
-            y_train.append(label)
-
-        x_test = []
-        y_test = []
-        for i in range(len(test_set)):
-            data, label = test_set[i]
-            x_test.append(data.numpy())
-            y_test.append(label)
-
-        x_train = np.array(x_train).reshape(len(x_train), -1)
-        y_train = np.array(y_train)
-        x_test = np.array(x_test).reshape(len(x_test), -1)
-        y_test = np.array(y_test)
+        if self.dataset == "mnist":
+            train_set = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=torchvision.transforms.Compose(train_transforms))
+            test_set = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=torchvision.transforms.Compose(test_transforms))
+        elif self.dataset == "cifar10":
+            train_set = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=torchvision.transforms.Compose(train_transforms))
+            test_set = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=torchvision.transforms.Compose(test_transforms))
+            
+        x_train = np.stack([train_set[i][0].numpy().reshape(-1) for i in range(len(train_set))])
+        y_train = np.array([train_set[i][1] for i in range(len(train_set))])
+        x_test  = np.stack([test_set[i][0].numpy().reshape(-1) for i in range(len(test_set))])
+        y_test  = np.array([test_set[i][1] for i in range(len(test_set))])
 
         return (x_train, y_train), (x_test, y_test)

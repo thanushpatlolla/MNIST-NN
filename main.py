@@ -13,6 +13,6 @@ cifar10_dataloader = DataLoader(dataset="cifar10", augmentation=True)
 training_set, test_data = cifar10_dataloader.get_data()
 
 CIFAR10_solver=NN(training_set=training_set, test_data=test_data, input_dim=len(training_set[0][0]), 
-                  epochs=40, hidden_dims=[1024, 512], act=GeLU(), lr_max=1e-3, warmup=12, 
+                  epochs=150, hidden_dims=[2048, 1024], act=GeLU(), lr_max=1e-3, warmup=6, 
                   weight_decay=0.03, dropout=0.4)
 CIFAR10_solver.train()

@@ -2,7 +2,7 @@
 
 A complete implementation of a neural network from scratch using only NumPy for image classification on MNIST and CIFAR-10 datasets. This project demonstrates the fundamentals of deep learning by implementing all core components manually. 
 
-Taught me a lot about all the core features used in most deep neural networks (other than residual connections and batch/layer norm, will be done in future projects). Also helped me understand hyperparameter optimization. 
+Taught me a lot about all the math behind core features used in most deep neural networks. Also helped me understand hyperparameter optimization. 
 
 Does quite well on MNIST but struggles on CIFAR-10 as expected when we don't use a CNN.
 
@@ -34,8 +34,8 @@ CIFAR-10 Accuracy is around 59%
 - Currently configured for CIFAR-10 with data augmentation
 - Architecture: 1024 → 512 → 10 neurons
 - Batch size: 128, Learning rate: 1e-3 to 1e-5 (cosine annealing)
-- Weight decay: 0.02, Dropout: 0.5
-- Epochs: 20
+- Weight decay: 0.03, Dropout: 0.5
+- Epochs: 120 (warmup 5)
 
 ## 🏗️ Architecture
 

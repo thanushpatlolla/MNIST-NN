@@ -6,7 +6,7 @@ Taught me a lot about all the core features used in most deep neural networks (o
 
 Does quite well on MNIST but struggles on CIFAR-10 as expected when we don't use a CNN.
 
-MNIST Accuracy is around 98% on test set. 
+MNIST Accuracy is around 98% 
 CIFAR-10 Accuracy is around 59%
 
 ## Features

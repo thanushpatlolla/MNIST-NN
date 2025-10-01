@@ -137,7 +137,7 @@ The training process includes:
 - [ ] Additional activation functions
 - [ ] Learning rate finder
 - [ ] Add options to output_layer
-- [ ] Make each layer its own class (makes it easier to add batchnorm/layernorm/dropout/convolutions)
+- [ ] Make each layer its own class (makes it easier to add batchnorm/layernorm/dropout/convolutions). Probably not going to do this and just do it in PyTorch.
 
 ## 📄 License
 

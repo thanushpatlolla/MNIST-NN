@@ -25,7 +25,7 @@ class Plot:
         self.ax2.set_xlabel("Epoch")
         self.ax2.set_ylabel("Accuracy")
         self.ax2.set_title("Accuracy")
-        self.ax2.set_ylim(0.8, 1.0)
+        self.ax2.set_ylim(0.0, 1.0)
         self.ax2.legend()
 
         self.fig.tight_layout()

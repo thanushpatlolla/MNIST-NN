@@ -136,7 +136,8 @@ The training process includes:
 - [ ] CNN implementation for better CIFAR-10 performance
 - [ ] Additional activation functions
 - [ ] Learning rate finder
-- [ ] Make each layer its own class (configurable to do things other than classify, makes it easier to add batchnorm/layernorm/dropout/convolutions)
+- [ ] Add options to output_layer
+- [ ] Make each layer its own class (makes it easier to add batchnorm/layernorm/dropout/convolutions)
 
 ## 📄 License
 

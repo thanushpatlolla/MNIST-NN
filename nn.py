@@ -1,8 +1,9 @@
 import numpy as np
 from activations import ReLU
-from loss import CrossEntropyLoss as loss
+from output_layer import softmax as out
 from plot import Plot
 from optimizer import SGD, AdamW
+from evals import Evals
 
 
 #mini-batch with const learning rate, He initialization
@@ -29,10 +30,8 @@ class NN:
         self.lr_max=lr_max
         self.lr_min=lr_min
         self.optimizer=optimizer(self.lr_max, weight_decay=weight_decay)
-        self.t=0
-        self.warmup_steps=int(self.warmup*len(self.x_train)//self.batch_size)
         self.dropout=dropout
-        print("nn initialized")
+        self.evals=Evals(act)
     
     #randomly choose half to be validation set
     def split_data(self):
@@ -47,6 +46,7 @@ class NN:
     
     #create relevant arrays
     def initialize(self):
+        self.t=0 #steps used for scheduling
         self.weights=[]
         self.biases=[]
         self.activations=[np.zeros(self.dims[0], dtype=np.float32)]
@@ -70,54 +70,33 @@ class NN:
             self.activations[i+1]=self.act.act(self.preactivations[i])
             self.mask.append(np.random.binomial(1, 1-self.dropout, self.activations[i+1].shape))
             if self.dropout>0:
-                self.activations[i+1]=self.activations[i+1]*self.mask[i]/(1-self.dropout)
+                self.activations[i+1]=self.activations[i+1]*self.mask[i]/(1-self.dropout) #kill some neurons, scale
         
-        #because mnist is classification into 10 diff things, 
+        #because we are doing classification, 
         #could probably make the final output layer configurable at some point
+        #(so that we could do other things like predict a general function)
         self.preactivations[len(self.dims)-2]=self.activations[len(self.dims)-2]@self.weights[len(self.dims)-2].T+self.biases[len(self.dims)-2]
-        self.activations[len(self.dims)-1]=loss.softmax(self.preactivations[len(self.dims)-2])
+        self.activations[len(self.dims)-1]=out.output(self.preactivations[len(self.dims)-2])
     
     def backwards_pass(self, y_batch):
         B=y_batch.shape[0]
         weightgrads=[]
         biasgrads=[]
-        y=np.eye(self.output_dim)[y_batch]
+        y=np.eye(self.output_dim)[y_batch] #one hot vectors
         derivs=[self.activations[-1]-y] #derivative of loss wrt to input to the layer, so partial L partial z_i where a_i=relu(z_i)
         for i in reversed(range(1, len(self.dims)-1)):
             biasgrads.append(np.mean(derivs[-1], axis=0))
             weightgrads.append(derivs[-1].T@self.activations[i]/B)
             derivs.append((derivs[-1]@self.weights[i])*self.act.dact(self.preactivations[i-1]))
             if self.dropout>0:
-                derivs[-1]=derivs[-1]*self.mask[i-1]/(1-self.dropout)
+                derivs[-1]=derivs[-1]*self.mask[i-1]/(1-self.dropout) #set grad through dead neurons to 0
             
         biasgrads.append(derivs[-1].sum(axis=0)/B)
         weightgrads.append(derivs[-1].T@self.activations[0]/B)
-        weightgrads.reverse()
-        biasgrads.reverse()
+        weightgrads.reverse() #because we added going backwards
+        biasgrads.reverse() #likewise
         return (weightgrads, biasgrads)
-            
-            
-    def evaluate(self, input):
-        ans=input
-        for i in range(len(self.dims)-2):
-            ans=self.act.act(ans@self.weights[i].T+self.biases[i])
-            
-        ans=loss.softmax(ans@self.weights[len(self.dims)-2].T+self.biases[len(self.dims)-2])
-        
-        return ans
-                                             
-            
-    def loss(self, x_data, y_data):
-        ans=self.evaluate(x_data)
-        y=np.eye(self.output_dim)[y_data]
-        
-        return -np.mean(np.sum(y*np.log(ans+1e-12), axis=1))
-        
-            
-    def accuracy(self, x_data, y_data):
-        ans=self.evaluate(x_data)
-        return np.mean(np.argmax(ans, axis=1) == y_data)
-    
+                
     
     def create_batches(self):
         batches=[]
@@ -129,6 +108,7 @@ class NN:
         return batches
     
     def lr_schedule(self):
+        self.warmup_steps=int(self.warmup*len(self.x_train)//self.batch_size)
         total_steps = self.epochs * np.ceil(len(self.x_train) / self.batch_size)
         if self.t <= self.warmup_steps:
             ans = self.lr_max*self.t/self.warmup_steps
@@ -153,10 +133,10 @@ class NN:
                 self.optimizer.update_lr(self.lr_schedule())
                 self.optimizer.step(self.weights, self.biases, wgrads, bgrads)
                 
-            self.train_losses.append(self.loss(self.x_train, self.y_train))
-            self.val_losses.append(self.loss(self.x_val, self.y_val))
-            self.train_accuracies.append(self.accuracy(self.x_train, self.y_train))
-            self.val_accuracies.append(self.accuracy(self.x_val, self.y_val))
+            self.train_losses.append(self.evals.loss(self.weights, self.biases, self.x_train, self.y_train))
+            self.val_losses.append(self.evals.loss(self.weights, self.biases, self.x_val, self.y_val))
+            self.train_accuracies.append(self.evals.accuracy(self.weights, self.biases, self.x_train, self.y_train))
+            self.val_accuracies.append(self.evals.accuracy(self.weights, self.biases, self.x_val, self.y_val))
             self.plot.plot(self.train_losses, self.val_losses, self.train_accuracies, self.val_accuracies)
             
                 
@@ -166,6 +146,6 @@ class NN:
         print("Final Validation loss: ", self.val_losses[-1])
         print("Final Training accuracy: ", self.train_accuracies[-1])
         print("Final Validation accuracy: ", self.val_accuracies[-1])
-        print("Final Test accuracy: ", self.accuracy(self.x_test, self.y_test))
+        print("Final Test accuracy: ", self.evals.accuracy(self.weights, self.biases, self.x_test, self.y_test))
         print("Training complete")
         return

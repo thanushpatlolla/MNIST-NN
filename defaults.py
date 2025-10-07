@@ -21,3 +21,4 @@ class defaults:
                   epochs=120, hidden_dims=[2048, 1024], act=GeLU(), lr_max=1e-3, warmup=6, 
                   weight_decay=0.03, dropout=0.5)
         CIFAR10_solver.train()
+        return CIFAR10_solver

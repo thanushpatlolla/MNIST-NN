@@ -15,6 +15,9 @@ class DataLoader():
         if self.dataset == "mnist":
             base_train_transforms.append(torchvision.transforms.Normalize((0.1307,), (0.3081,)))
             test_transforms.append(torchvision.transforms.Normalize((0.1307,), (0.3081,)))
+        elif self.dataset == "fashion_mnist":
+            base_train_transforms.append(torchvision.transforms.Normalize((0.2860,), (0.3530,)))
+            test_transforms.append(torchvision.transforms.Normalize((0.2860,), (0.3530,)))
         elif self.dataset == "cifar10":
             base_train_transforms.append(torchvision.transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616]))
             test_transforms.append(torchvision.transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616]))
@@ -25,6 +28,9 @@ class DataLoader():
         if self.dataset == "mnist":
             original_train_set = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=torchvision.transforms.Compose(base_train_transforms))
             test_set = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=torchvision.transforms.Compose(test_transforms))
+        elif self.dataset == "fashion_mnist":
+            original_train_set = torchvision.datasets.FashionMNIST(root='./data', train=True, download=True, transform=torchvision.transforms.Compose(base_train_transforms))
+            test_set = torchvision.datasets.FashionMNIST(root='./data', train=False, download=True, transform=torchvision.transforms.Compose(test_transforms))
         elif self.dataset == "cifar10":
             original_train_set = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=torchvision.transforms.Compose(base_train_transforms))
             test_set = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=torchvision.transforms.Compose(test_transforms))
@@ -39,6 +45,8 @@ class DataLoader():
             augmented_transforms = base_train_transforms.copy()
             if self.dataset == "mnist":
                 augmented_transforms.insert(-2, torchvision.transforms.RandomCrop(28, padding=4, padding_mode="reflect"))
+            elif self.dataset == "fashion_mnist":
+                augmented_transforms.insert(-2, torchvision.transforms.RandomCrop(28, padding=4, padding_mode="reflect"))
             elif self.dataset == "cifar10":
                 augmented_transforms.insert(-2, torchvision.transforms.RandomCrop(32, padding=4, padding_mode='reflect'))
                 augmented_transforms.insert(-2, torchvision.transforms.RandomHorizontalFlip(p=0.5))
@@ -46,6 +54,8 @@ class DataLoader():
             # Load augmented dataset
             if self.dataset == "mnist":
                 augmented_train_set = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=torchvision.transforms.Compose(augmented_transforms))
+            elif self.dataset == "fashion_mnist":
+                augmented_train_set = torchvision.datasets.FashionMNIST(root='./data', train=True, download=True, transform=torchvision.transforms.Compose(augmented_transforms))
             elif self.dataset == "cifar10":
                 augmented_train_set = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=torchvision.transforms.Compose(augmented_transforms))
             

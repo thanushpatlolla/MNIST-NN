@@ -1,12 +1,13 @@
 # Neural Network from Scratch
 
-A complete implementation of a neural network from scratch using only NumPy for image classification on MNIST and CIFAR-10 datasets. This project demonstrates the fundamentals of deep learning by implementing all core components manually. 
+A complete implementation of a neural network from scratch using only NumPy for image classification on MNIST, FashionMNIST, CIFAR-10 datasets. This project demonstrates the fundamentals of deep learning by implementing all core components manually. 
 
 Taught me a lot about all the math behind core features used in most deep neural networks. Also helped me understand hyperparameter optimization. 
 
-Does quite well on MNIST but struggles on CIFAR-10 as expected when we don't use a CNN.
+Does quite well on MNIST/FashionMNIST but struggles on CIFAR-10 as expected when we don't use a CNN.
 
 MNIST Accuracy is around 98% 
+FashionMNIST Accuracy is around 92%
 CIFAR-10 Accuracy is around 59%
 
 ## Features

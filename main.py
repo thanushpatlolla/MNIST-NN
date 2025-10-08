@@ -8,5 +8,6 @@ from defaults import defaults
 #the nn can be stored in a variable and then used for more evaluation
 
 
-MNIST_solver=defaults.mnist()
-CIFAR10_solver=defaults.cifar10()
+# MNIST_solver=defaults.mnist()
+# CIFAR10_solver=defaults.cifar10()
+FashionMNIST_solver=defaults.fashion_mnist()
